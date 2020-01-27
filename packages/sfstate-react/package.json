@@ -1,0 +1,24 @@
+{
+  "name": "@sfstate/react",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^16.8.0",
+    "@sfstate/core": "1.0.0"
+  },
+  "main": "dist/index",
+  "types": "dist/index",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run clean && npm run compile",
+    "clean": "rm -rf ./dist",
+    "compile": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^3.7.5",
+    "@types/react": "^16.9.19"
+  }
+}
