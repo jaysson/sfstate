@@ -152,6 +152,7 @@ doesn't conform to state chart specification(SCXML). However, most of your app l
 - No conditional transitions. Put your conditional logic in the event `reducer`
 - No activities. May be added in future if there is demand
 - No delayed events & transitions. Keep that logic where the event originates
+- No visualiser. The library is designed to dynamically derive the next state for an event 
 
 ## Examples
 
