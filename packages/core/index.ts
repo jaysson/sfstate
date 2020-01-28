@@ -25,7 +25,7 @@ export type StateManager<GenericStateShape extends StateShape, GenericEvent exte
   stop: () => void;
   send: (event: GenericEvent) => Promise<void>;
   listen: (handler: Listener<GenericStateShape>) => () => void;
-  current: GenericStateShape
+  current: GenericStateShape;
 };
 
 /**
@@ -40,7 +40,7 @@ export const create = <GenericStateShape extends StateShape, GenericEvent extend
   // This can be used to create multiple service managers from same config object.
   let state = produce(config.initial, () => config.initial) as GenericStateShape;
   const listeners = new Map<Symbol, Listener<GenericStateShape>>();
-  let currentService: Symbol | null;
+  let currentPromise: Symbol | null;
   let isRunning = false;
 
   const start = () => {
@@ -66,17 +66,27 @@ export const create = <GenericStateShape extends StateShape, GenericEvent extend
    */
   const transitionTo = (newState: GenericStateShape, event: GenericEvent) => {
     state = newState;
+    const currentStatus = state.status as keyof MachineConfig<GenericStateShape, GenericEvent>['states'];
+    const onExit = config.states[currentStatus].onExit;
     // Only one promise can be invoked at a time in a machine
     // If we move to a new state, we stop caring about whatever happens to the old promise
-    currentService = null;
+    currentPromise = null;
     broadcast();
-    const newStateStatus = state.status as keyof MachineConfig<GenericStateShape, GenericEvent>['states'];
-    if (config.states[newStateStatus].invoke) {
+    const newStatus = state.status as keyof MachineConfig<GenericStateShape, GenericEvent>['states'];
+    const onEntry = config.states[newStatus].onEntry;
+    if (onExit) {
+      onExit();
+    }
+    if (onEntry) {
+      onEntry();
+    }
+    const invoke = config.states[newStatus].invoke;
+    if (invoke) {
       const serviceId = Symbol();
-      currentService = serviceId;
-      config.states[newStateStatus].invoke!(state, event).then(nextState => {
+      currentPromise = serviceId;
+      invoke(state, event).then(nextState => {
         // Only use the result if we are still in the same state
-        if (currentService === serviceId) {
+        if (currentPromise === serviceId) {
           transitionTo(nextState, event);
         }
       });
@@ -94,8 +104,11 @@ export const create = <GenericStateShape extends StateShape, GenericEvent extend
     const currentState = state.status as keyof MachineConfig<GenericStateShape, GenericEvent>['states'];
     const currentStateConfig = config.states[currentState];
     const eventType = event.type as GenericEvent['type'];
-    if (currentStateConfig.on && currentStateConfig.on[eventType]) {
-      transitionTo(currentStateConfig.on[eventType]!(state, event), event);
+    if (currentStateConfig.on) {
+      const eventHandler = currentStateConfig.on[eventType];
+      if (eventHandler) {
+        transitionTo(eventHandler(state, event), event);
+      }
     }
   };
 
@@ -106,6 +119,6 @@ export const create = <GenericStateShape extends StateShape, GenericEvent extend
     listen,
     get current() {
       return state;
-    }
+    },
   };
 };
